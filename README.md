@@ -1,104 +1,125 @@
-# Sistema de Gestión de Servicios de Estibas (MVC - Java Swing)
+# Mini Compilador para Recetas Médicas
 
-Sistema de escritorio desarrollado en Java con arquitectura **MVC (Modelo-Vista-Controlador)** para la gestión de servicios de estibas de una empresa de transportes, año 2026.
+Proyecto de **Teoría de Computación**. Aplicación web estática (HTML + CSS + JS puro,
+sin backend) que analiza recetas médicas en texto plano y, por cada **tipo de token**
+detectado, construye:
 
-## 🧩 Características
+- La **quíntupla del AFND** (Autómata Finito No Determinista).
+- La **quíntupla del AFD** (Autómata Finito Determinista), obtenida por
+  **construcción de subconjuntos** a partir del AFND.
+- La **tabla de transición** de ambos autómatas.
+- El **mapa de análisis sintáctico**: estado origen → token → estado destino → regla
+  gramatical aplicada.
 
-- Patrón **MVC** completo (Modelo / Vista / Controlador)
-- Patrón **Singleton** para el control de sesión de usuario
-- Interfaz gráfica con **Java Swing**
-- Persistencia en archivos (`.dat`)
-- CRUD completo de servicios de estiba
-- Módulo de **Login** con máximo 3 intentos
-- Módulo de **Reportes** (general, por estado, por placa, por fechas, ingresos totales)
-- Generación automática de número de factura (`E001-001`, `E001-002`, ...)
-- Validaciones de campos y formatos
+## 🔐 Acceso
 
-## 🛠️ Tecnologías
+```
+Usuario:     admi
+Contraseña:  123
+```
 
-- Java SE (compatible con Apache NetBeans)
-- Swing (JFrame, JTable, JComboBox, JOptionPane)
-- Colecciones `ArrayList`
-- Serialización de objetos (`Serializable`)
+## 🧩 Tipos de token soportados
+
+| Tipo            | Ejemplo            | Reconocimiento                          |
+|-----------------|---------------------|------------------------------------------|
+| `PALABRA_CLAVE` | `Paciente`, `Dosis` | Cadena literal (lista fija de 7 claves) |
+| `DOS_PUNTOS`    | `:`                  | Símbolo literal                         |
+| `IDENTIFICADOR` | `MariaLopez`        | letra⁺ (una o más letras)               |
+| `NUMERO`        | `500`, `8`          | dígito⁺ (uno o más dígitos)             |
+| `UNIDAD`        | `mg`, `ml`, `tabletas` | Cadena literal (vocabulario fijo)     |
+| `FRECUENCIA_TXT`| `cada`, `horas`, `dias` | Cadena literal (vocabulario fijo)   |
+
+## ⚙️ Construcción de los autómatas
+
+### 1) Tokens de "cadena literal" (palabra clave, unidad, frecuencia, `:`)
+
+Se modela el reconocimiento carácter por carácter. Para evidenciar el paso
+AFND → AFD se introduce no determinismo artificial en el primer símbolo:
+
+```
+AFND:  q0 --c0--> {q1, q1b}        (dos caminos posibles)
+       q1 --c1--> q2
+       q1b --c1--> q2               (ambos convergen)
+       q2 --c2--> q3  ...  q(n-1) --c(n-1)--> qn      F = {qn}
+```
+
+Construcción de subconjuntos → AFD:
+
+```
+A0=[q0] --c0--> A1=[q1,q1b] --c1--> A2=[q2] --c2--> ... --> An=[qn]   F = {An}
+```
+
+### 2) Tokens de "clase repetida" (identificador, número)
+
+```
+AFND:  q0 --s--> {q1,q2}
+       q1 --s--> q1
+       q2 --s--> q1                 F = {q1}
+```
+
+Construcción de subconjuntos → AFD:
+
+```
+A=[q0] --s--> B=[q1,q2] --s--> C=[q1] --s--> C     F = {B, C}
+```
+
+Donde `s` es la clase de símbolo (`letra` o `digito`).
+
+## 📐 Gramática del análisis sintáctico
+
+```
+<receta>  ::= <linea>+
+<linea>   ::= PALABRA_CLAVE ':' <valor>
+<valor>   ::= IDENTIFICADOR
+            | NUMERO UNIDAD
+            | FRECUENCIA_TXT NUMERO FRECUENCIA_TXT
+            | <valor> (NUMERO | UNIDAD | FRECUENCIA_TXT)*
+```
+
+Implementada como un autómata de control con estados:
+`ESPERA_CLAVE → ESPERA_DOSPUNTOS → ESPERA_VALOR → EN_VALOR` (y `ERROR` ante
+cualquier transición no contemplada).
 
 ## 📁 Estructura del proyecto
 
 ```
-estibas-mvc/
-│
-├── src/
-│   ├── modelo/
-│   │   ├── ServicioEstiba.java        # Entidad / POJO del servicio
-│   │   ├── ServicioDAO.java           # Acceso a datos (CRUD + persistencia)
-│   │   └── UsuarioSingleton.java      # Singleton de sesión
-│   │
-│   ├── vista/
-│   │   ├── LoginView.java
-│   │   ├── PrincipalView.java
-│   │   ├── RegistrarServicioView.java
-│   │   ├── BuscarServicioView.java
-│   │   ├── ModificarServicioView.java
-│   │   ├── EliminarServicioView.java
-│   │   └── ReporteView.java
-│   │
-│   ├── controlador/
-│   │   ├── LoginController.java
-│   │   └── ServicioController.java
-│   │
-│   └── principal/
-│       └── Main.java
-│
-├── data/
-│   └── servicios.dat                  # Archivo de persistencia (se genera en ejecución)
-│
-├── docs/
-│   └── diagrama-clases.png            # Diagrama UML del sistema
-│
+compilador-recetas/
+├── index.html       # Login + interfaz del compilador
+├── lexer.js         # Analizador léxico (tokenización y clasificación)
+├── automata.js       # Construcción de AFND, AFD y tablas de transición
+├── sintaxis.js       # Analizador sintáctico (máquina de estados + gramática)
+├── app.js            # Orquestación: login, render de resultados
 ├── .gitignore
 ├── LICENSE
 └── README.md
 ```
 
-## 📦 Diagrama de clases (relaciones principales)
-
-```
-LoginView ---> LoginController ---> UsuarioSingleton
-PrincipalView ---> ServicioController ---> ServicioDAO ---> ServicioEstiba
-RegistrarServicioView, BuscarServicioView,
-ModificarServicioView, EliminarServicioView,
-ReporteView  ---> ServicioController
-```
-
 ## ▶️ Ejecución
 
+No requiere backend ni instalación. Basta con:
+
 1. Clonar el repositorio.
-2. Abrir el proyecto en **Apache NetBeans** (`File > Open Project`).
-3. Ejecutar `principal/Main.java`.
-4. Iniciar sesión con:
-   - Usuario: `admin`
-   - Contraseña: `admin123`
+2. Abrir `index.html` en el navegador (o publicarlo con GitHub Pages).
+3. Iniciar sesión con `admi` / `123`.
+4. Escribir/editar la receta médica de ejemplo y presionar **"Analizar receta"**.
+5. Expandir cada tarjeta de autómata para ver su quíntupla AFND/AFD y tabla
+   de transición; revisar el mapa de análisis sintáctico generado debajo.
 
-## 👤 Credenciales por defecto
+## 🌐 Publicar en GitHub Pages
 
-| Usuario | Contraseña |
-|---------|------------|
-| admin   | admin123   |
+```
+Settings → Pages → Branch: main → /(root) → Save
+```
 
-## 📋 Roadmap de desarrollo (sugerido para commits)
+La URL pública quedará como `https://<usuario>.github.io/compilador-recetas/`.
 
-- [ ] `feat: estructura base del proyecto`
-- [ ] `feat: modelo ServicioEstiba`
-- [ ] `feat: ServicioDAO con persistencia en archivo`
-- [ ] `feat: UsuarioSingleton`
-- [ ] `feat: LoginView + LoginController`
-- [ ] `feat: PrincipalView con menú`
-- [ ] `feat: RegistrarServicioView + CRUD registrar`
-- [ ] `feat: BuscarServicioView`
-- [ ] `feat: ModificarServicioView`
-- [ ] `feat: EliminarServicioView`
-- [ ] `feat: ReporteView (reportes y totales)`
-- [ ] `chore: validaciones y manejo de excepciones`
-- [ ] `docs: diagrama UML y README`
+## 👥 Equipo de desarrollo
+
+- Hilario Arias, Asiri Illari
+- Rejanovinshi Benavente, Cielo de los Ángeles
+- Valenzuela Miguel, Gianella Magaly
+- Vargas Villacrez, Yosef Keith
+- Retuerto Olivera, Luis Matias
 
 ## 📄 Licencia
 

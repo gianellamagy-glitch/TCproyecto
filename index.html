@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mini Compilador Receta Médica</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2230;
+  --border:    #30363d;
+  --accent:    #1f6feb;
+  --accent2:   #388bfd;
+  --green:     #3fb950;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --error:     #f85149;
+  --amber:     #d29922;
+}
+
+html, body { min-height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); }
+body { overflow-x: hidden; }
+
+.grid-bg { position: fixed; inset: 0; z-index: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 40px 40px; opacity: 0.15; }
+.glow { position: fixed; z-index: 0; border-radius: 50%; filter: blur(120px); opacity: 0.1; }
+.glow-1 { width: 500px; height: 500px; background: var(--accent); top: -100px; left: -100px; }
+.glow-2 { width: 400px; height: 400px; background: #1a7f64; bottom: -80px; right: -80px; }
+
+.wrapper { position: relative; z-index: 1; display: flex; height: 100vh; }
+
+.panel-left { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 48px 52px; border-right: 1px solid var(--border); background: rgba(22,27,34,0.6); backdrop-filter: blur(6px); }
+.course-badge { display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: var(--accent2); background: rgba(31,111,235,.12); border: 1px solid rgba(31,111,235,.28); padding: 5px 12px; border-radius: 20px; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 28px; }
+.course-badge::before { content: ''; width: 7px; height: 7px; background: var(--green); border-radius: 50%; box-shadow: 0 0 6px var(--green); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.panel-left h1 { font-size: 20px; font-weight: 700; line-height: 1.35; color: var(--text); margin-bottom: 6px; }
+.panel-left .subtitle { font-size: 11px; color: var(--muted); margin-bottom: 36px; font-family: 'JetBrains Mono', monospace; }
+.team-label { font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+.team-list { display: flex; flex-direction: column; gap: 9px; }
+.member { display: flex; align-items: center; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; transition: border-color .2s, transform .15s; }
+.member:hover { border-color: var(--accent); transform: translateX(3px); }
+.avatar { width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0; background: linear-gradient(135deg, var(--accent) 0%, #1a7f64 100%); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; font-family: 'JetBrains Mono', monospace; }
+.member-info { min-width: 0; }
+.member-name { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.25; }
+.member-name .firstname { color: var(--accent2); }
+.member-role { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; margin-top: 1px; }
+
+.panel-right { width: 420px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 56px 44px; background: rgba(13,17,23,0.88); backdrop-filter: blur(10px); }
+.logo-wrap { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; }
+.logo-icon { width: 46px; height: 46px; border-radius: 11px; background: linear-gradient(135deg, var(--accent) 0%, #1a7f64 100%); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.logo-text .top { font-size: 14px; font-weight: 700; color: var(--text); }
+.logo-text .bot { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.login-card { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 30px 26px; }
+.login-card h2 { font-size: 17px; font-weight: 700; margin-bottom: 5px; }
+.login-card p { font-size: 12px; color: var(--muted); margin-bottom: 24px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: .05em; text-transform: uppercase; }
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-wrap .icon { position: absolute; left: 11px; font-size: 14px; pointer-events: none; opacity: .5; }
+.input-wrap input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px 10px 36px; font-size: 13px; font-family: 'JetBrains Mono', monospace; color: var(--text); outline: none; transition: border-color .2s, box-shadow .2s; }
+.input-wrap input::placeholder { color: var(--muted); opacity: .55; }
+.input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(31,111,235,.18); }
+.error-msg { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3); color: var(--error); font-size: 12px; border-radius: 6px; padding: 8px 12px; margin-bottom: 14px; display: none; }
+.error-msg.visible { display: block; }
+.btn-login { width: 100%; padding: 11px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background .2s, box-shadow .2s, transform .1s; letter-spacing: .02em; }
+.btn-login:hover { background: var(--accent2); box-shadow: 0 0 18px rgba(31,111,235,.4); }
+.btn-login:active { transform: scale(.98); }
+.hint { margin-top: 18px; text-align: center; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+.hint span { color: var(--accent2); }
+
+#app-frame { display: none; position: fixed; inset: 0; z-index: 100; flex-direction: column; background: var(--bg); }
+#app-frame.visible { display: flex; }
+.app-topbar { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border-bottom: 1px solid var(--border); padding: 9px 22px; flex-shrink: 0; }
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-logo { width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), #1a7f64); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.topbar-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+.user-chip { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 11px 3px 5px; font-size: 12px; color: var(--text); }
+.user-chip .dot { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #1a7f64); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; }
+.btn-logout { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.25); color: var(--error); font-size: 11px; font-weight: 600; border-radius: 6px; padding: 5px 11px; cursor: pointer; transition: background .2s; }
+.btn-logout:hover { background: rgba(248,81,73,.2); }
+
+/* ── COMPILER APP ── */
+#compiler { flex: 1; overflow-y: auto; padding: 26px 36px 60px; }
+.intro-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 22px; }
+.intro-box h3 { font-size: 14px; margin-bottom: 8px; color: var(--accent2); }
+.intro-box p { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.intro-box code { font-family: 'JetBrains Mono', monospace; background: var(--surface2); padding: 1px 6px; border-radius: 4px; color: var(--green); }
+
+.input-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 24px; }
+.input-card label { display:block; font-size: 11px; font-weight:600; color: var(--muted); text-transform: uppercase; letter-spacing:.05em; margin-bottom:8px; }
+.input-card textarea { width: 100%; min-height: 110px; resize: vertical; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; padding: 12px; outline:none; }
+.input-card textarea:focus { border-color: var(--accent); }
+.btn-row { display:flex; gap:10px; margin-top: 14px; }
+.btn-primary, .btn-secondary { padding: 9px 18px; font-size: 12px; font-weight: 600; border-radius: 8px; cursor: pointer; border: none; }
+.btn-primary { background: var(--accent); color:#fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); }
+
+.section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--accent2); margin: 30px 0 14px; display:flex; align-items:center; gap:8px; }
+.section-title::before { content:''; width:8px; height:8px; background: var(--accent); border-radius:2px; }
+
+.token-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.data-table th { background: var(--surface2); color: var(--accent2); text-align:left; padding: 9px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+table.data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; color: var(--text); }
+table.data-table tr:last-child td { border-bottom: none; }
+table.data-table tr:hover td { background: rgba(31,111,235,.06); }
+.tag { display:inline-block; padding: 2px 8px; border-radius: 5px; font-size: 10px; font-weight:700; letter-spacing:.03em; }
+.tag-clave   { background: rgba(31,111,235,.15); color: var(--accent2); }
+.tag-id      { background: rgba(63,185,80,.15); color: var(--green); }
+.tag-num     { background: rgba(210,153,34,.15); color: var(--amber); }
+.tag-unidad  { background: rgba(248,81,73,.12); color: #ff8a80; }
+.tag-frec    { background: rgba(168,123,255,.15); color: #c9a6ff; }
+.tag-signo   { background: rgba(139,148,158,.18); color: var(--muted); }
+.tag-error   { background: rgba(248,81,73,.2); color: var(--error); }
+
+.automata-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 18px; overflow:hidden; }
+.automata-head { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; cursor:pointer; background: var(--surface2); }
+.automata-head h4 { font-size: 13px; color: var(--text); }
+.automata-head .chev { color: var(--muted); transition: transform .2s; font-size: 11px; }
+.automata-body { padding: 16px 18px; display:none; }
+.automata-card.open .automata-body { display:block; }
+.automata-card.open .chev { transform: rotate(90deg); }
+
+.quintuple { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.9; }
+.quintuple b { color: var(--accent2); }
+.quintuple .lbl { color: var(--muted); }
+
+.subtitle-mini { font-size: 11px; font-weight:700; color: var(--muted); text-transform: uppercase; letter-spacing:.05em; margin: 14px 0 8px; }
+
+.syntax-step { display:flex; align-items:center; gap: 10px; font-family:'JetBrains Mono', monospace; font-size: 12px; padding: 7px 0; border-bottom: 1px dashed var(--border); flex-wrap: wrap; }
+.syntax-step:last-child { border-bottom:none; }
+.state-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 3px 10px; color: var(--accent2); font-size: 11px; }
+.arrow { color: var(--muted); }
+.rule-text { color: var(--green); font-size: 11px; }
+
+.empty-hint { color: var(--muted); font-size: 12px; text-align:center; padding: 30px 0; }
+
+@media (max-width: 768px) { .panel-left { display: none; } .panel-right { width: 100%; padding: 36px 24px; } #compiler { padding: 18px; } }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="glow glow-1"></div>
+<div class="glow glow-2"></div>
+
+<!-- LOGIN -->
+<div class="wrapper" id="login-screen">
+  <div class="panel-left">
+    <div class="course-badge">Teoría de Computación</div>
+    <h1>Mini Compilador para<br>Recetas Médicas</h1>
+    <p class="subtitle">// reducción de errores en indicaciones hospitalarias</p>
+    <div class="team-label">Equipo de desarrollo</div>
+    <div class="team-list">
+      <div class="member"><div class="avatar">HA</div><div class="member-info"><div class="member-name">Hilario Arias &nbsp;<span class="firstname">Asiri Illari</span></div><div class="member-role">integrante_01 · integrante_02</div></div></div>
+      <div class="member"><div class="avatar">RB</div><div class="member-info"><div class="member-name">Rejanovinshi Benavente &nbsp;<span class="firstname">Cielo de los Ángeles</span></div><div class="member-role">integrante_03 · integrante_04</div></div></div>
+      <div class="member"><div class="avatar">VM</div><div class="member-info"><div class="member-name">Valenzuela Miguel &nbsp;<span class="firstname">Gianella Magaly</span></div><div class="member-role">integrante_05 · integrante_06</div></div></div>
+      <div class="member"><div class="avatar">VV</div><div class="member-info"><div class="member-name">Vargas Villacrez &nbsp;<span class="firstname">Yosef Keith</span></div><div class="member-role">integrante_07 · integrante_08</div></div></div>
+      <div class="member"><div class="avatar">RO</div><div class="member-info"><div class="member-name">Retuerto Olivera &nbsp;<span class="firstname">Luis Matias</span></div><div class="member-role">integrante_09 · integrante_10</div></div></div>
+    </div>
+  </div>
+
+  <div class="panel-right">
+    <div class="logo-wrap">
+      <div class="logo-icon">⚕️</div>
+      <div class="logo-text"><div class="top">Mini Compilador</div><div class="bot">// receta médica · v2.0</div></div>
+    </div>
+    <div class="login-card">
+      <h2>Iniciar sesión</h2>
+      <p>Ingresa tus credenciales para acceder al compilador</p>
+      <div class="error-msg" id="error-msg">⚠ Usuario o contraseña incorrectos</div>
+      <div class="field">
+        <label>Usuario</label>
+        <div class="input-wrap"><span class="icon">👤</span><input type="text" id="username" placeholder="admi" autocomplete="username" /></div>
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="input-wrap"><span class="icon">🔒</span><input type="password" id="password" placeholder="••••" autocomplete="current-password" /></div>
+      </div>
+      <button class="btn-login" id="btn-login">Ingresar al compilador →</button>
+      <div class="hint">acceso: <span>admi</span> / <span>123</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-frame">
+  <div class="app-topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">⚕️</div>
+      <span class="topbar-title">Mini Compilador – Receta Médica</span>
+    </div>
+    <div class="topbar-right">
+      <div class="user-chip"><div class="dot" id="user-dot">A</div><span id="user-label">admi</span></div>
+      <button class="btn-logout" id="btn-logout">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="compiler">
+    <div class="intro-box">
+      <h3>¿Cómo funciona?</h3>
+      <p>
+        Escribe una receta médica usando el formato <code>Clave: valor</code> por línea
+        (claves válidas: <code>Paciente</code>, <code>Diagnostico</code>, <code>Medicamento</code>,
+        <code>Dosis</code>, <code>Frecuencia</code>, <code>Via</code>, <code>Duracion</code>).
+        Al analizar, por cada <b>tipo de token</b> detectado se construye su Autómata Finito No
+        Determinista (AFND), su Autómata Finito Determinista (AFD) equivalente, la tabla de
+        transición, y el mapa del análisis sintáctico (estado → token → estado).
+      </p>
+    </div>
+
+    <div class="input-card">
+      <label>Receta médica de entrada</label>
+      <textarea id="receta-input">Paciente: MariaLopez
+Diagnostico: Faringitis
+Medicamento: Amoxicilina
+Dosis: 500 mg
+Frecuencia: cada 8 horas
+Via: oral
+Duracion: 7 dias</textarea>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-analizar">▶ Analizar receta</button>
+        <button class="btn-secondary" id="btn-limpiar">Limpiar</button>
+      </div>
+    </div>
+
+    <div id="resultados"></div>
+  </div>
+</div>
+
+<script src="lexer.js"></script>
+<script src="automata.js"></script>
+<script src="sintaxis.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
